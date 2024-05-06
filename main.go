@@ -2,59 +2,26 @@ package main
 
 import (
 	"os"
-
 	"github.com/alecthomas/repr"
-
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
 )
 
-// A custom lexer for INI files. This illustrates a relatively complex Regexp lexer, as well
-// as use of the Unquote filter, which unquotes string tokens.
 var (
-	iniLexer = lexer.MustSimple([]lexer.SimpleRule{
-		{`Ident`, `[a-zA-Z][a-zA-Z_\d]*`},
-		{`String`, `"(?:\\.|[^"])*"`},
-		{`Float`, `\d+(?:\.\d+)?`},
-		{`Punct`, `[][=]`},
-		{"comment", `[#;][^\n]*`},
-		{"whitespace", `\s+`},
+	// MVP regex for IPA form lexing
+	IPAFormLexer = lexer.MustSimple([]lexer.SimpleRule{
+		{`Token`, `kw|k|ɪ|ŋ|\s`},
 	})
-	parser = participle.MustBuild[INI](
-		participle.Lexer(iniLexer),
-		participle.Unquote("String"),
-		participle.Union[Value](String{}, Number{}),
-	)
+	parser = participle.MustBuild[Document](participle.Lexer(IPAFormLexer))
 )
 
-type INI struct {
-	Properties []*Property `@@*`
-	Sections   []*Section  `@@*`
+type Document struct {
+	Tokens []*Token `@@*`
 }
 
-type Section struct {
-	Identifier string      `"[" @Ident "]"`
-	Properties []*Property `@@*`
+type Token struct {
+	Key string `@Token`
 }
-
-type Property struct {
-	Key   string `@Ident "="`
-	Value Value  `@@`
-}
-
-type Value interface{ value() }
-
-type String struct {
-	String string `@String`
-}
-
-func (String) value() {}
-
-type Number struct {
-	Number float64 `@Float`
-}
-
-func (Number) value() {}
 
 func main() {
 	ini, err := parser.Parse("", os.Stdin)
